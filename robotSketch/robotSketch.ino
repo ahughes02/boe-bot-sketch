@@ -90,6 +90,7 @@ void loop()
       {
         mySerial.read(); // read to clear buffer
       }
+    }
       
       // Raw buffer print out for debug
       Serial.println("");
@@ -136,5 +137,4 @@ void loop()
       servoLeft.writeMicroseconds(leftMSint);
       
       exitLoop = 0;
-    }  
 }
