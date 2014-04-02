@@ -162,8 +162,13 @@ void loop()
       else
       {
         mySerial.read(); // read to clear buffer
+		Serial.println("");
+		Serial.print("Proximity data: ");
+		Serial.print(readProximity());
+		Serial.println("");
       }
     }
+	
       
       // Raw buffer print out for debug
       Serial.println("");
