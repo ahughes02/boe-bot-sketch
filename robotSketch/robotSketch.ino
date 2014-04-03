@@ -52,6 +52,7 @@ int exitLoop = 0; 	// variable is set to 1 when valid buffer is stored
 int leftMSint = 1500;   // stores the left microseconds as an integer
 int rightMSint = 1500;  // stores the right microseconds as an integer
 boolean sensor = true;
+int prox = 0;
 
 // References
 // Sample Line of data from serial
@@ -135,13 +136,23 @@ void loop()
     // --------------------------
     while(exitLoop != 1)
     {
+      prox = readProximity();
+	  
+	  if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
+      {
+        Serial.print("Prox = ");
+        Serial.println(prox);
+        stopString.toCharArray(buffer, 20);
+        exitLoop = 1;
+      }
+      
       count = 0; // reset count
           
       incByte = mySerial.peek(); // get the next byte
           
       test = char(incByte); // store it as a character 
 
-      if(test == '#') // if the next byte is a '#' then its the start of a new string
+      if(test == '#' && exitLoop != 1) // if the next byte is a '#' then its the start of a new string
       {
         mySerial.readBytesUntil('$', buffer, 20); // read until the stop character
         
@@ -164,10 +175,6 @@ void loop()
       else
       {
         mySerial.read(); // read to clear buffer
-		Serial.println("");
-		Serial.print("Proximity data: ");
-		Serial.print(readProximity());
-		Serial.println("");
       }
     }
 	
@@ -212,6 +219,15 @@ void loop()
           
       leftMSint = atoi(leftMS);
       rightMSint = atoi(rightMS);
+	  
+	  if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
+      {
+        Serial.print("Prox = ");
+        Serial.println(prox);
+        leftMSint = 1500;
+		rightMSint = 1500;
+        exitLoop = 1;
+      }
  
       servoRight.writeMicroseconds(rightMSint);
       servoLeft.writeMicroseconds(leftMSint);
