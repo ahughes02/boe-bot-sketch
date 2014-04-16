@@ -36,9 +36,12 @@ Modified last: 2014-02-04
 #define VCNL4000_AMBIENTREADY 0x40
 #define VCNL4000_PROXIMITYREADY 0x20
 
+#define BUFSIZE  16  // Size of buffer (in bytes) for incoming data from the LRF (this should be adjusted to be larger than the expected response)
+
 // servos
 Servo servoRight;	// Declare right servo
 Servo servoLeft;	// Declare left servo
+Servo lrfServo;
 
 // variables
 byte incByte; 		// stores the next byte in the serial buffer
@@ -53,7 +56,7 @@ int leftMSint = 1500;   // stores the left microseconds as an integer
 int rightMSint = 1500;  // stores the right microseconds as an integer
 boolean sensor = true;
 int prox = 0;
-
+String stopString = "#1500,1500$";
 // References
 // Sample Line of data from serial
 //  L     R
@@ -61,6 +64,7 @@ int prox = 0;
 // 1300ms full speed CW, 1500ms stops, 1700ms full speed CCW.
 
 SoftwareSerial mySerial(2, 3); // RX, TX
+SoftwareSerial lrfSerial(9, 8); // RX, TX
 
 void setup() 
 {
@@ -77,6 +81,48 @@ void setup()
   
   servoLeft.attach(13);                     // Attach left signal to pin 13 
   servoLeft.writeMicroseconds(1500);        // 1.5 ms stop
+  
+  delay(2000);
+  
+  /*
+    When the LRF powers on, it launches an auto-baud routine to determine the
+    host's baud rate. it will stay in this state until a "U" ($55) character
+    is sent by the host. 
+  */
+  Serial.print("Waiting for the LRF...");
+  delay(2000);                        // Delay to let LRF module start up
+  lrfSerial.print('U');               // Send character
+  while (lrfSerial.read() != ':');    // When the LRF has initialized and is ready, it will send a single ':' character, so wait here until we receive it
+  delay(10);                          // Short delay
+  lrfSerial.flush();                  // Flush the receive buffer
+  Serial.println("Ready!");
+  Serial.flush();                     // Wait for all bytes to be transmitted to the Serial Monitor
+  
+  delay(1000);
+  
+  lrfServo.attach(11);
+  
+  lrfServo.writeMicroseconds(1400);
+  
+  readProx();
+  
+  delay(1000);
+  
+  lrfServo.writeMicroseconds(2000);
+  
+  readProx();
+  
+  delay(1000);
+  
+  lrfServo.writeMicroseconds(900);
+  
+  readProx();
+  
+  delay(1000);
+  
+  lrfServo.writeMicroseconds(1400); // center?
+  
+  readProx();
   
   Wire.begin();
   
@@ -138,7 +184,7 @@ void loop()
     {
       prox = readProximity();
 	  
-	  if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
+      if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
       {
         Serial.print("Prox = ");
         Serial.println(prox);
@@ -303,4 +349,38 @@ void write8(uint8_t address, uint8_t data)
   Wire.send(data);  
 #endif
   Wire.endTransmission();
+}
+
+void readProx()
+{
+    /* 
+    When a single range (R) command is sent, the LRF returns the distance to the target
+    object in ASCII in millimeters. For example:
+     
+    D = 0123 mm
+  */   
+  lrfSerial.print('R');         // Send command
+  
+  // Get response back from LRF
+  // See Arduino readBytesUntil() as an alternative solution to read data from the LRF
+  char lrfData[BUFSIZE];  // Buffer for incoming data
+  char offset = 0;        // Offset into buffer
+  lrfData[0] = 0;         // Clear the buffer    
+  while(1)
+  {
+    if (lrfSerial.available() > 0) // If there are any bytes available to read, then the LRF must have responded
+    {
+      lrfData[offset] = lrfSerial.read();  // Get the byte and store it in our buffer
+      if (lrfData[offset] == ':')          // If a ":" character is received, all data has been sent and the LRF is ready to accept the next command
+      {
+        lrfData[offset] = 0; // Null terminate the string of bytes we just received
+        break;               // Break out of the loop
+      }
+          
+      offset++;  // Increment offset into array
+      if (offset >= BUFSIZE) offset = 0; // If the incoming data string is longer than our buffer, wrap around to avoid going out-of-bounds
+    }
+  }
+  Serial.println(lrfData);    // The lrfData string should now contain the data returned by the LRF, so display it on the Serial Monitor
+  Serial.flush();             // Wait for all bytes to be transmitted to the Serial Monitor
 }
