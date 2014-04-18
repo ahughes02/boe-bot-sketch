@@ -7,7 +7,7 @@ REQURIES AN ARDUINO MEGA
 ----------------------------------------------
 
 Programmed by: Austin Hughes
-Modified last: 2014-02-04
+Modified last: 2014-04-18
 */ 
 
 #include <Servo.h>
@@ -42,7 +42,7 @@ Modified last: 2014-02-04
 // servos
 Servo servoRight;	// Declare right servo
 Servo servoLeft;	// Declare left servo
-Servo lrfServo;
+Servo lrfServo;     // servo for the laser range finder
 
 // variables
 byte incByte; 		// stores the next byte in the serial buffer
@@ -55,8 +55,8 @@ int j = 0; 		// iterator to store data in humidity, temp, and pressure variable
 int exitLoop = 0; 	// variable is set to 1 when valid buffer is stored
 int leftMSint = 1500;   // stores the left microseconds as an integer
 int rightMSint = 1500;  // stores the right microseconds as an integer
-boolean sensor = true;
-int prox = 0;
+boolean sensor = true; //stores if the prox sensor is active
+int prox = 0; // stores proximity
 String stopString = "#1500,1500$";
 
 
@@ -106,7 +106,7 @@ void setup()
   lrfServo.attach(11);
   lrfServo.writeMicroseconds(1400); // move laser to center
   
-    Serial.println("1");
+  Serial.println("1"); // debug
   
   Wire.begin();
   
@@ -124,7 +124,7 @@ void setup()
      sensor = false;
    //}
    
-    Serial.println("2");
+    Serial.println("2"); // debug
    
    /*if(sensor)
    {
@@ -145,7 +145,7 @@ void setup()
         Serial.print("Proximity adjustment register = ");
         Serial.println(read8(VCNL4000_PROXINITYADJUST), HEX);
    }*/
-   Serial.println("3");
+   Serial.println("3"); // debug
    tone(4, 3000, 500);                       // Play tone for 1 second
    delay(500);                               // Delay to finish tone
 }
@@ -175,6 +175,7 @@ void loop()
 	  
 	  if(test == 's')
 	  {
+		Serial.println("Sweep command received");
 		sweep();
 	  }
 
@@ -261,6 +262,7 @@ void loop()
       exitLoop = 0;
 }
 
+// moves the laser sensor and takes readings three times
 void sweep()
 {
   readProx();
