@@ -1,8 +1,9 @@
 /*
-ARUDINO POWERED ROBOT
+ARUDINO MEGA POWERED ROBOT
 ----------------------------------------------
 THIS PROGRAM GATHERS ALLOWS A USER TO CONTROL
 THE ROBOT WITH SERIAL COMMANDS
+REQURIES AN ARDUINO MEGA
 ----------------------------------------------
 
 Programmed by: Austin Hughes
@@ -57,20 +58,22 @@ int rightMSint = 1500;  // stores the right microseconds as an integer
 boolean sensor = true;
 int prox = 0;
 String stopString = "#1500,1500$";
+
+
 // References
 // Sample Line of data from serial
 //  L     R
 // #1500,1500$
 // 1300ms full speed CW, 1500ms stops, 1700ms full speed CCW.
 
-SoftwareSerial mySerial(2, 3); // RX, TX
-SoftwareSerial lrfSerial(9, 8); // RX, TX
+SoftwareSerial btSerial(2, 3); // RX, TX
 
 void setup() 
 {
   // initialize serial ports
   Serial.begin(9600);
-  mySerial.begin(9600);
+  Serial1.begin(9600);
+  btSerial.begin(9600);
   
   tone(4, 3000, 1000);                       // Play tone for 1 second
   delay(1000);                               // Delay to finish tone
@@ -82,7 +85,7 @@ void setup()
   servoLeft.attach(13);                     // Attach left signal to pin 13 
   servoLeft.writeMicroseconds(1500);        // 1.5 ms stop
   
-  delay(2000);
+  delay(1000);
   
   /*
     When the LRF powers on, it launches an auto-baud routine to determine the
@@ -91,55 +94,39 @@ void setup()
   */
   Serial.print("Waiting for the LRF...");
   delay(2000);                        // Delay to let LRF module start up
-  lrfSerial.print('U');               // Send character
-  while (lrfSerial.read() != ':');    // When the LRF has initialized and is ready, it will send a single ':' character, so wait here until we receive it
+  Serial1.print('U');               // Send character
+  while (Serial1.read() != ':');    // When the LRF has initialized and is ready, it will send a single ':' character, so wait here until we receive it
   delay(10);                          // Short delay
-  lrfSerial.flush();                  // Flush the receive buffer
+  Serial1.flush();                  // Flush the receive buffer
   Serial.println("Ready!");
   Serial.flush();                     // Wait for all bytes to be transmitted to the Serial Monitor
   
   delay(1000);
   
   lrfServo.attach(11);
+  lrfServo.writeMicroseconds(1400); // move laser to center
   
-  lrfServo.writeMicroseconds(1400);
-  
-  readProx();
-  
-  delay(1000);
-  
-  lrfServo.writeMicroseconds(2000);
-  
-  readProx();
-  
-  delay(1000);
-  
-  lrfServo.writeMicroseconds(900);
-  
-  readProx();
-  
-  delay(1000);
-  
-  lrfServo.writeMicroseconds(1400); // center?
-  
-  readProx();
+    Serial.println("1");
   
   Wire.begin();
   
-  uint8_t rev = read8(VCNL4000_PRODUCTID);
+  // Proximity sensor setup
+  //uint8_t rev = read8(VCNL4000_PRODUCTID);
   
-   if ((rev & 0xF0) != 0x10) 
+  /* if ((rev & 0xF0) != 0x10) 
    {
      Serial.println("Proximity sensor not found");
      
      tone(4, 3000, 500);             
      tone(4, 3000, 1000);                
-     tone(4, 3000, 500);
+     tone(4, 3000, 500); */
      
      sensor = false;
-   }
+   //}
    
-   if(sensor)
+    Serial.println("2");
+   
+   /*if(sensor)
    {
         write8(VCNL4000_IRLED, 20);        // set to 20 * 10mA = 200mA
         Serial.print("IR LED current = ");
@@ -157,22 +144,10 @@ void setup()
         write8(VCNL4000_PROXINITYADJUST, 0x81);
         Serial.print("Proximity adjustment register = ");
         Serial.println(read8(VCNL4000_PROXINITYADJUST), HEX);
-   }
-}
-
-uint16_t readProximity() 
-{
-  write8(VCNL4000_COMMAND, VCNL4000_MEASUREPROXIMITY);
-  while (1) 
-  {
-    uint8_t result = read8(VCNL4000_COMMAND);
-    //Serial.print("Ready = 0x"); Serial.println(result, HEX);
-    if (result & VCNL4000_PROXIMITYREADY) 
-    {
-      return read16(VCNL4000_PROXIMITYDATA);
-    }
-    delay(1);
-  }
+   }*/
+   Serial.println("3");
+   tone(4, 3000, 500);                       // Play tone for 1 second
+   delay(500);                               // Delay to finish tone
 }
 
 void loop() 
@@ -182,25 +157,30 @@ void loop()
     // --------------------------
     while(exitLoop != 1)
     {
-      prox = readProximity();
+      //prox = readProximity();
 	  
-      if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
-      {
-        Serial.print("Prox = ");
-        Serial.println(prox);
-        stopString.toCharArray(buffer, 20);
-        exitLoop = 1;
-      }
+      //if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
+      //{
+      //  Serial.print("Prox = ");
+       // Serial.println(prox);
+       // stopString.toCharArray(buffer, 20);
+      //  exitLoop = 1;
+      //}
       
       count = 0; // reset count
           
-      incByte = mySerial.peek(); // get the next byte
+      incByte = btSerial.peek(); // get the next byte
           
       test = char(incByte); // store it as a character 
+	  
+	  if(test == 's')
+	  {
+		sweep();
+	  }
 
       if(test == '#' && exitLoop != 1) // if the next byte is a '#' then its the start of a new string
       {
-        mySerial.readBytesUntil('$', buffer, 20); // read until the stop character
+        btSerial.readBytesUntil('$', buffer, 20); // read until the stop character
         
         // check for the number of '#' chars in the buffer    
         for(int i = 0; i <= 20; i++)
@@ -215,12 +195,12 @@ void loop()
         if(count == 1)
         {
           exitLoop = 1;
-          mySerial.print('c'); // confirmation message
+          btSerial.print('c'); // confirmation message
         }
       }
       else
       {
-        mySerial.read(); // read to clear buffer
+        btSerial.read(); // read to clear buffer
       }
     }
 	
@@ -266,19 +246,96 @@ void loop()
       leftMSint = atoi(leftMS);
       rightMSint = atoi(rightMS);
 	  
-	  if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
-      {
-        Serial.print("Prox = ");
-        Serial.println(prox);
-        leftMSint = 1500;
-		rightMSint = 1500;
-        exitLoop = 1;
-      }
+	  //if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
+      //{
+      //  Serial.print("Prox = ");
+      // Serial.println(prox);
+      //  leftMSint = 1500;
+		//rightMSint = 1500;
+      //  exitLoop = 1;
+      //}
  
       servoRight.writeMicroseconds(rightMSint);
       servoLeft.writeMicroseconds(leftMSint);
       
       exitLoop = 0;
+}
+
+void sweep()
+{
+  readProx();
+  
+  delay(1000);
+  
+  lrfServo.writeMicroseconds(2000);
+  
+  readProx();
+  
+  delay(1000);
+  
+  lrfServo.writeMicroseconds(900);
+  
+  readProx();
+  
+  delay(1000);
+  
+  lrfServo.writeMicroseconds(1400); // center?
+}
+
+// Read poximity from the laser range finder
+void readProx()
+{
+    /* 
+    When a single range (R) command is sent, the LRF returns the distance to the target
+    object in ASCII in millimeters. For example:
+     
+    D = 0123 mm
+  */   
+  Serial1.print('R');         // Send command
+  
+  // Get response back from LRF
+  // See Arduino readBytesUntil() as an alternative solution to read data from the LRF
+  char lrfData[BUFSIZE];  // Buffer for incoming data
+  char offset = 0;        // Offset into buffer
+  lrfData[0] = 0;         // Clear the buffer    
+  while(1)
+  {
+    if (Serial1.available() > 0) // If there are any bytes available to read, then the LRF must have responded
+    {
+      lrfData[offset] = Serial1.read();  // Get the byte and store it in our buffer
+      if (lrfData[offset] == ':')          // If a ":" character is received, all data has been sent and the LRF is ready to accept the next command
+      {
+        lrfData[offset] = 0; // Null terminate the string of bytes we just received
+        break;               // Break out of the loop
+      }
+          
+      offset++;  // Increment offset into array
+      if (offset >= BUFSIZE) offset = 0; // If the incoming data string is longer than our buffer, wrap around to avoid going out-of-bounds
+    }
+  }
+  Serial.println(lrfData);    // The lrfData string should now contain the data returned by the LRF, so display it on the Serial Monitor
+  btSerial.println(lrfData);
+  Serial.flush();             // Wait for all bytes to be transmitted to the Serial Monitor
+}
+
+/* ***************************************
+
+// Infrared Proximity Sensor Methods
+
+   ***************************************/
+uint16_t readProximity() 
+{
+  write8(VCNL4000_COMMAND, VCNL4000_MEASUREPROXIMITY);
+  while (1) 
+  {
+    uint8_t result = read8(VCNL4000_COMMAND);
+    //Serial.print("Ready = 0x"); Serial.println(result, HEX);
+    if (result & VCNL4000_PROXIMITYREADY) 
+    {
+      return read16(VCNL4000_PROXIMITYDATA);
+    }
+    delay(1);
+  }
 }
 
 // Read 1 byte from the VCNL4000 at 'address'
@@ -349,38 +406,4 @@ void write8(uint8_t address, uint8_t data)
   Wire.send(data);  
 #endif
   Wire.endTransmission();
-}
-
-void readProx()
-{
-    /* 
-    When a single range (R) command is sent, the LRF returns the distance to the target
-    object in ASCII in millimeters. For example:
-     
-    D = 0123 mm
-  */   
-  lrfSerial.print('R');         // Send command
-  
-  // Get response back from LRF
-  // See Arduino readBytesUntil() as an alternative solution to read data from the LRF
-  char lrfData[BUFSIZE];  // Buffer for incoming data
-  char offset = 0;        // Offset into buffer
-  lrfData[0] = 0;         // Clear the buffer    
-  while(1)
-  {
-    if (lrfSerial.available() > 0) // If there are any bytes available to read, then the LRF must have responded
-    {
-      lrfData[offset] = lrfSerial.read();  // Get the byte and store it in our buffer
-      if (lrfData[offset] == ':')          // If a ":" character is received, all data has been sent and the LRF is ready to accept the next command
-      {
-        lrfData[offset] = 0; // Null terminate the string of bytes we just received
-        break;               // Break out of the loop
-      }
-          
-      offset++;  // Increment offset into array
-      if (offset >= BUFSIZE) offset = 0; // If the incoming data string is longer than our buffer, wrap around to avoid going out-of-bounds
-    }
-  }
-  Serial.println(lrfData);    // The lrfData string should now contain the data returned by the LRF, so display it on the Serial Monitor
-  Serial.flush();             // Wait for all bytes to be transmitted to the Serial Monitor
 }
