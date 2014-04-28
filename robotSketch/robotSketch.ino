@@ -66,14 +66,14 @@ String stopString = "#1500,1500$";
 // #1500,1500$
 // 1300ms full speed CW, 1500ms stops, 1700ms full speed CCW.
 
-SoftwareSerial btSerial(2, 3); // RX, TX
+//SoftwareSerial btSerial(2, 3); // RX, TX SOFTWARE SERIAL NOT WORKING ON THE ARDUINO MEGA
 
 void setup() 
 {
   // initialize serial ports
   Serial.begin(9600);
   Serial1.begin(9600);
-  btSerial.begin(9600);
+  //btSerial.begin(9600);
   
   tone(4, 3000, 1000);                       // Play tone for 1 second
   delay(1000);                               // Delay to finish tone
@@ -92,14 +92,16 @@ void setup()
     host's baud rate. it will stay in this state until a "U" ($55) character
     is sent by the host. 
   */
-  Serial.print("Waiting for the LRF...");
+  
+  // uncomment the serial lines when debugging
+  //Serial.print("Waiting for the LRF...");
   delay(2000);                        // Delay to let LRF module start up
   Serial1.print('U');               // Send character
   while (Serial1.read() != ':');    // When the LRF has initialized and is ready, it will send a single ':' character, so wait here until we receive it
   delay(10);                          // Short delay
   Serial1.flush();                  // Flush the receive buffer
-  Serial.println("Ready!");
-  Serial.flush();                     // Wait for all bytes to be transmitted to the Serial Monitor
+ // Serial.println("Ready!");
+ // Serial.flush();                     // Wait for all bytes to be transmitted to the Serial Monitor
   
   delay(1000);
   
@@ -108,7 +110,7 @@ void setup()
   
   Serial.println("1"); // debug
   
-  Wire.begin();
+  //Wire.begin();
   
   // Proximity sensor setup
   //uint8_t rev = read8(VCNL4000_PRODUCTID);
@@ -152,36 +154,38 @@ void setup()
 
 void loop() 
 {
+    
     // --------------------------
     // serial message validation
     // --------------------------
     while(exitLoop != 1)
     {
-      //prox = readProximity();
+      //prox = readProximity(); proximitiy sensor not working yet
 	  
       //if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
       //{
       //  Serial.print("Prox = ");
-       // Serial.println(prox);
-       // stopString.toCharArray(buffer, 20);
+      //  Serial.println(prox);
+      //  stopString.toCharArray(buffer, 20);
       //  exitLoop = 1;
       //}
       
       count = 0; // reset count
           
-      incByte = btSerial.peek(); // get the next byte
+      incByte = Serial.peek(); // get the next byte
           
       test = char(incByte); // store it as a character 
 	  
-	  if(test == 's')
-	  {
-		Serial.println("Sweep command received");
-		sweep();
-	  }
-
+      if(test == 's')
+      {
+        Serial.println("Sweep command received");
+        Serial.read();
+	sweep();
+      }
+ 
       if(test == '#' && exitLoop != 1) // if the next byte is a '#' then its the start of a new string
       {
-        btSerial.readBytesUntil('$', buffer, 20); // read until the stop character
+        Serial.readBytesUntil('$', buffer, 20); // read until the stop character
         
         // check for the number of '#' chars in the buffer    
         for(int i = 0; i <= 20; i++)
@@ -196,21 +200,21 @@ void loop()
         if(count == 1)
         {
           exitLoop = 1;
-          btSerial.print('c'); // confirmation message
+          Serial.print('c'); // confirmation message
         }
       }
       else
       {
-        btSerial.read(); // read to clear buffer
+        Serial.read(); // read to clear buffer
       }
     }
 	
       
-      // Raw buffer print out for debug
-      Serial.println("");
-      Serial.print("Raw buffer: ");
-      Serial.println(buffer);
-      Serial.println("");
+      // Raw buffer print out uncomment for debug
+     // Serial.println("");
+     // Serial.print("Raw buffer: ");
+     // Serial.println(buffer);
+     // Serial.println("");
        
       // --------------------------------
       // loops to save data to variables
@@ -236,18 +240,20 @@ void loop()
       // send data over USB
       // ----------------------------
     
+      // uncomment lines below for debug
+      
       //Send leftMS to Computer
-      Serial.print("Left: ");
-      Serial.println(leftMS);
+      //Serial.print("Left: ");
+      //Serial.println(leftMS);
           
       //Send rightMS to computer
-      Serial.print("Right: ");
-      Serial.println(rightMS);
+      //Serial.print("Right: ");
+      //Serial.println(rightMS);
           
       leftMSint = atoi(leftMS);
       rightMSint = atoi(rightMS);
 	  
-	  //if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
+      //if(prox > 3000 && leftMSint < 1500 && rightMSint > 1500)
       //{
       //  Serial.print("Prox = ");
       // Serial.println(prox);
@@ -276,6 +282,8 @@ void sweep()
   delay(1000);
   
   lrfServo.writeMicroseconds(900);
+  
+  delay(1000);
   
   readProx();
   
@@ -316,7 +324,7 @@ void readProx()
     }
   }
   Serial.println(lrfData);    // The lrfData string should now contain the data returned by the LRF, so display it on the Serial Monitor
-  btSerial.println(lrfData);
+  //btSerial.println(lrfData); // switched to hardware serial instead of software so leave this line commented out unless software serial is used.
   Serial.flush();             // Wait for all bytes to be transmitted to the Serial Monitor
 }
 
