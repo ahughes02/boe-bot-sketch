@@ -99,7 +99,9 @@ void setup()
   delay(1000);
 
   lrfServo.attach(11);
-  lrfServo.writeMicroseconds(1400); // move laser to center
+  lrfServo.writeMicroseconds(1350);
+
+
 
   // This code is used to setup the infrared proximity sensor it is commented
   // because the code did not function properly but it should be preserved
@@ -264,7 +266,7 @@ void sweep()
 
   delay(1000);
 
-  lrfServo.writeMicroseconds(1400); // center?
+  lrfServo.writeMicroseconds(1350); // center?
 }
 
 /****************************************
